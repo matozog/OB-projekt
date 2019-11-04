@@ -41,37 +41,56 @@ def count_plot_comparison(feature, data_df, tiff_data, dicom_data):
 
 
 def main():
+    data_dir = "../"
+    data_df = pd.read_csv(data_dir + "overview.csv")
+    print("CT Medical images -  rows:", data_df.shape[0], " columns:", data_df.shape[1])
+    data_df.head()
+
+    print("Number of TIFF images:", len(os.listdir(data_dir + "tiff_images")))
+    tiff_data = pd.DataFrame([{'path': file_path} for file_path in glob('../tiff_images/*.tif')])
+    tiff_data = process_data(data_dir + 'tiff_images/*.tif')
+    # print(tiff_data)
+
+    print("Number of DICOM files:", len(os.listdir(data_dir + "dicom_dir")))
+    dicom_data = process_data(data_dir + 'dicom_dir/*.dcm')
+
+    count_plot_comparison('Age', data_df, tiff_data, dicom_data)
+
+    # example from https://www.datacamp.com/community/tutorials/convolutional-neural-networks-python
     batch_size = 64
     epochs = 2
     num_classes = 10
-    (train_X, train_Y), (test_X, test_Y) = fashion_mnist.load_data()
-
-    print('Training data shape : ', train_X.shape, train_Y.shape)
-
-    print('Testing data shape : ', test_X.shape, test_Y.shape)
-
-    train_X = train_X.reshape(-1, 28, 28, 1)
-    test_X = test_X.reshape(-1, 28, 28, 1)
+    # (train_X, train_Y), (test_X, test_Y) = fashion_mnist.load_data()
+    #
+    # print('Training data shape : ', train_X.shape, train_Y.shape)
+    #
+    # print('Testing data shape : ', test_X.shape, test_Y.shape)
+    #
+    # train_X = train_X.reshape(-1, 28, 28, 1)
+    # test_X = test_X.reshape(-1, 28, 28, 1)
 
     # print(train_X[0,:,:])
 
-    train_X = train_X.astype('float32')
-    test_X = test_X.astype('float32')
-    train_X = train_X / 255.
-    test_X = test_X / 255.
+    # train_X = train_X.astype('float32')
+    # test_X = test_X.astype('float32')
+    # train_X = train_X / 255.
+    # test_X = test_X / 255.
+    #
+    # train_Y_one_hot = to_categorical(train_Y)
+    # test_Y_one_hot = to_categorical(test_Y)
+    #
+    # print('Original label:', train_Y[0])
+    # print('After conversion to one-hot:', train_Y_one_hot[0])
+    #
+    # train_X, valid_X, train_label, valid_label = train_test_split(train_X, train_Y_one_hot, test_size=0.2,
+    #                                                               random_state=13)
+    #
+    # print(train_X.shape, valid_X.shape, train_label.shape, valid_label.shape)
 
-    train_Y_one_hot = to_categorical(train_Y)
-    test_Y_one_hot = to_categorical(test_Y)
+    # loading model
+    #fashion_model = load_model("fashion_model_dropout.h5py")
 
-    print('Original label:', train_Y[0])
-    print('After conversion to one-hot:', train_Y_one_hot[0])
-
-    train_X, valid_X, train_label, valid_label = train_test_split(train_X, train_Y_one_hot, test_size=0.2,
-                                                                  random_state=13)
-
-    print(train_X.shape, valid_X.shape, train_label.shape, valid_label.shape)
-
-    fashion_model = load_model("fashion_model_dropout.h5py")
+    # building new model
     # fashion_model = Sequential()
     # fashion_model.add(Conv2D(32, kernel_size=(3, 3), activation='linear', input_shape=(28, 28, 1), padding='same'))
     # fashion_model.add(LeakyReLU(alpha=0.1))
@@ -97,12 +116,13 @@ def main():
     # fashion_train = fashion_model.fit(train_X, train_label, batch_size=batch_size, epochs=epochs, verbose=1,
     #                                   validation_data=(valid_X, valid_label))
 
-    test_eval = fashion_model.evaluate(test_X, test_Y_one_hot, verbose=1)
-
-    fashion_model.save("fashion_model_dropout.h5py")
-
-    print('Test loss:', test_eval[0])
-    print('Test accuracy:', test_eval[1])
+    # evaluate model
+    # test_eval = fashion_model.evaluate(test_X, test_Y_one_hot, verbose=1)
+    #
+    # fashion_model.save("fashion_model_dropout.h5py")
+    #
+    # print('Test loss:', test_eval[0])
+    # print('Test accuracy:', test_eval[1])
 
     # accuracy = fashion_train.history['acc']
     # val_accuracy = fashion_train.history['val_acc']
@@ -120,31 +140,16 @@ def main():
     # plt.legend()
     # plt.show()
 
-    predicted_classes = fashion_model.predict(test_X)
-    predicted_classes = np.argmax(np.round(predicted_classes), axis=1)
-    correct = np.where(predicted_classes == test_Y)[0]
-    print("Found %d correct labels" % len(correct))
-
-    incorrect = np.where(predicted_classes != test_Y)[0]
-    print("Found %d incorrect labels" % len(incorrect))
-
-    target_names = ["Class {}".format(i) for i in range(num_classes)]
-    print(classification_report(test_Y, predicted_classes, target_names=target_names))
-
-    data_dir = "../"
-    # data_df = pd.read_csv(data_dir + "overview.csv")
-    # print("CT Medical images -  rows:", data_df.shape[0], " columns:", data_df.shape[1])
-    # data_df.head()
+    # predicted_classes = fashion_model.predict(test_X)
+    # predicted_classes = np.argmax(np.round(predicted_classes), axis=1)
+    # correct = np.where(predicted_classes == test_Y)[0]
+    # print("Found %d correct labels" % len(correct))
     #
-    # print("Number of TIFF images:", len(os.listdir(data_dir + "tiff_images")))
-    # tiff_data = pd.DataFrame([{'path': file_path} for file_path in glob('../tiff_images/*.tif')])
-    # tiff_data = process_data(data_dir + 'tiff_images/*.tif')
-    # # print(tiff_data)
+    # incorrect = np.where(predicted_classes != test_Y)[0]
+    # print("Found %d incorrect labels" % len(incorrect))
     #
-    # print("Number of DICOM files:", len(os.listdir(data_dir + "dicom_dir")))
-    # dicom_data = process_data(data_dir + 'dicom_dir/*.dcm')
-    #
-    # count_plot_comparison('Age', data_df, tiff_data, dicom_data)
+    # target_names = ["Class {}".format(i) for i in range(num_classes)]
+    # print(classification_report(test_Y, predicted_classes, target_names=target_names))
 
 
 if __name__ == "__main__":
