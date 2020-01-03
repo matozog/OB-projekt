@@ -18,6 +18,7 @@ from sklearn.metrics import classification_report
 from keras.models import load_model
 from sklearn.metrics import classification_report
 
+
 def process_data(path):
     data = pd.DataFrame([{'path': filepath} for filepath in glob(path)])
     data['file'] = data['path'].map(os.path.basename)
@@ -69,8 +70,46 @@ def load_DCM_data(dicom_data):
     return ArrayDicom, labels
 
 
+def preprocessing_data(dcmSet, labels):
+    filters = 4
+    ConstPixelDims = (len(dcmSet) * filters, 512, 512)
+    processedDCMSet = np.zeros(ConstPixelDims)
+    processedLabels = np.zeros(len(labels) * filters, dtype=labels.dtype)
+    index = 0
+    for i in range(len(dcmSet)):
+        processedDCMSet[index, :, :] = dcmSet[i]
+        processedLabels[index] = labels[i]
+        index += 1
+        processedDCMSet[index, :, :] = np.rot90(dcmSet[i])
+        processedLabels[index] = labels[i]
+        index += 1
+        processedDCMSet[index, :, :] = np.rot90(dcmSet[i], 2)
+        processedLabels[index] = labels[i]
+        index += 1
+        processedDCMSet[index, :, :] = np.rot90(dcmSet[i], 3)
+        processedLabels[index] = labels[i]
+        index += 1
+        # show_images(processedDCMSet[index-filters: index, :, :])
+
+    return processedDCMSet, processedLabels
+
+
+def show_images(images):
+    plt.figure(figsize=[len(images), len(images)])
+    for i in range(len(images)):
+        # Display the first image in training data
+        plt.subplot(121)
+        plt.imshow(images[i, :, :], cmap='gray')
+        # plt.title("Ground Truth : {}".format(train_Y[0]))
+
+        # Display the first image in testing data
+        # plt.subplot(122)
+        # plt.imshow(test_X[1, :, :], cmap='gray')
+        # plt.title("Ground Truth : {}".format(test_Y[0]))
+        plt.show()
+
 def main():
-    batch_size = 10
+    batch_size = 20
     epochs = 10
     num_classes = 10
     n_classes = 2
@@ -92,6 +131,8 @@ def main():
     # print(dicom_data.shape)
     dcmSet, labels = load_DCM_data(dicom_data)
 
+    processedDCMSet, processedLabels = preprocessing_data(dcmSet, labels)
+
     # transpozycja x z y
     # for i in range(len(dcmSet)):
     #     dcmSet[i] = dcmSet[i].transpose()
@@ -108,7 +149,7 @@ def main():
 
     print('Testing data shape : ', test_X.shape, test_Y.shape)
 
-    X_train, X_test, y_train, y_test = train_test_split(dcmSet, labels, test_size=0.143, shuffle=True, random_state=50)
+    X_train, X_test, y_train, y_test = train_test_split(processedDCMSet, processedLabels, test_size=0.143, shuffle=True, random_state=50)
 
     plt.figure(figsize=[5, 5])
     # Display the first image in training data
@@ -180,26 +221,6 @@ def main():
     # loading model
     # fashion_model = load_model("fashion_model_dropout.h5py")
 
-    # building new model
-    # fashion_model = Sequential()
-    # fashion_model.add(Conv2D(32, kernel_size=(3, 3), activation='linear', input_shape=(28, 28, 1), padding='same'))
-    # fashion_model.add(LeakyReLU(alpha=0.1))
-    # fashion_model.add(MaxPooling2D((2, 2), padding='same'))
-    # fashion_model.add(Dropout(0.25))
-    # fashion_model.add(Conv2D(64, (3, 3), activation='linear', padding='same'))
-    # fashion_model.add(LeakyReLU(alpha=0.1))
-    # fashion_model.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
-    # fashion_model.add(Dropout(0.25))
-    # fashion_model.add(Conv2D(128, (3, 3), activation='linear', padding='same'))
-    # fashion_model.add(LeakyReLU(alpha=0.1))
-    # fashion_model.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
-    # fashion_model.add(Dropout(0.4))
-    # fashion_model.add(Flatten())
-    # fashion_model.add(Dense(128, activation='linear'))
-    # fashion_model.add(LeakyReLU(alpha=0.1))
-    # fashion_model.add(Dropout(0.3))
-    # fashion_model.add(Dense(num_classes, activation='softmax'))
-
     first_model = Sequential()
     first_model.add(Conv2D(8, kernel_size=(5, 5), strides=(1, 1), activation='linear', input_shape=(512, 512, 1)))
     first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
@@ -217,7 +238,7 @@ def main():
     first_model.summary()
 
     first_train = first_model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
-                                      validation_data=(X_valid, y_valid))
+                                  validation_data=(X_valid, y_valid))
 
     test_eval = first_model.evaluate(X_test, y_test_one_hot, verbose=0)
 
@@ -247,47 +268,6 @@ def main():
     plt.show()
     target_names = ["Class {}".format(i) for i in range(n_classes)]
     print(classification_report(y_test, predicted_classes, target_names=target_names))
-
-    # fashion_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(),
-    #                       metrics=['accuracy'])
-
-    # fashion_train = fashion_model.fit(train_X, train_label, batch_size=batch_size, epochs=epochs, verbose=1,
-    #                                   validation_data=(valid_X, valid_label))
-
-    # evaluate model
-    # test_eval = fashion_model.evaluate(test_X, test_Y_one_hot, verbose=1)
-    #
-    # fashion_model.save("fashion_model_dropout.h5py")
-    #
-    # print('Test loss:', test_eval[0])
-    # print('Test accuracy:', test_eval[1])
-
-    # accuracy = fashion_train.history['acc']
-    # val_accuracy = fashion_train.history['val_acc']
-    # loss = fashion_train.history['loss']
-    # val_loss = fashion_train.history['val_loss']
-    # epochs = range(len(accuracy))
-    # plt.plot(epochs, accuracy, 'bo', label='Training accuracy')
-    # plt.plot(epochs, val_accuracy, 'b', label='Validation accuracy')
-    # plt.title('Training and validation accuracy')
-    # plt.legend()
-    # plt.figure()
-    # plt.plot(epochs, loss, 'bo', label='Training loss')
-    # plt.plot(epochs, val_loss, 'b', label='Validation loss')
-    # plt.title('Training and validation loss')
-    # plt.legend()
-    # plt.show()
-
-    # predicted_classes = fashion_model.predict(test_X)
-    # predicted_classes = np.argmax(np.round(predicted_classes), axis=1)
-    # correct = np.where(predicted_classes == test_Y)[0]
-    # print("Found %d correct labels" % len(correct))
-    #
-    # incorrect = np.where(predicted_classes != test_Y)[0]
-    # print("Found %d incorrect labels" % len(incorrect))
-    #
-    # target_names = ["Class {}".format(i) for i in range(num_classes)]
-    # print(classification_report(test_Y, predicted_classes, target_names=target_names))
 
 
 if __name__ == "__main__":
