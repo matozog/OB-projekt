@@ -17,6 +17,8 @@ from keras.layers.advanced_activations import LeakyReLU
 from sklearn.metrics import classification_report
 from keras.models import load_model
 from sklearn.metrics import classification_report
+from sklearn.utils.testing import mock_mldata_urlopen
+from skimage.transform import resize
 
 
 def process_data(path):
@@ -43,9 +45,12 @@ def count_plot_comparison(feature, data_df, tiff_data, dicom_data):
 def load_DCM_data(dicom_data):
     # Get ref file
     RefDs = pydicom.dcmread(dicom_data['path'][0])
+    IMG_PX_SIZE = 128
 
     # Load dimensions based on the number of rows, columns, and slices (along the Z axis)
     ConstPixelDims = (len(dicom_data), int(RefDs.Rows), int(RefDs.Columns))
+    # ConstPixelDims = (len(dicom_data), IMG_PX_SIZE, IMG_PX_SIZE)
+
 
     # Load spacing values (in mm)
     ConstPixelSpacing = (float(RefDs.PixelSpacing[0]), float(RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
@@ -64,7 +69,9 @@ def load_DCM_data(dicom_data):
     for filenameDCM in listFilesDCM:
         # read the file
         ds = pydicom.dcmread(filenameDCM)
+        # resized_img = resize(ds.pixel_array, (IMG_PX_SIZE, IMG_PX_SIZE), anti_aliasing=True)
         # store the raw image data
+        # ArrayDicom[listFilesDCM.index(filenameDCM), :, :] = resized_img
         ArrayDicom[listFilesDCM.index(filenameDCM), :, :] = ds.pixel_array
 
     return ArrayDicom, labels
@@ -72,7 +79,8 @@ def load_DCM_data(dicom_data):
 
 def preprocessing_data(dcmSet, labels):
     filters = 4
-    ConstPixelDims = (len(dcmSet) * filters, 512, 512)
+    input_shape = 512
+    ConstPixelDims = (len(dcmSet) * filters, input_shape, input_shape)
     processedDCMSet = np.zeros(ConstPixelDims)
     processedLabels = np.zeros(len(labels) * filters, dtype=labels.dtype)
     index = 0
@@ -109,8 +117,9 @@ def show_images(images):
         plt.show()
 
 def main():
-    batch_size = 20
+    batch_size = 32
     epochs = 10
+    input_shape = 512
     num_classes = 10
     n_classes = 2
     data_dir = "../"
@@ -154,14 +163,14 @@ def main():
     plt.figure(figsize=[5, 5])
     # Display the first image in training data
     plt.subplot(121)
-    plt.imshow(dcmSet[8, :, :], cmap=plt.cm.bone)
-    # plt.title("Ground Truth : {}".format(train_Y[0]))
+    plt.imshow(dcmSet[0, :, :], cmap=plt.cm.bone)
+    plt.title("Ground Truth : {}".format(train_Y[0]))
 
     # Display the first image in testing data
-    plt.subplot(122)
-    plt.imshow(test_X[1, :, :], cmap='gray')
-    plt.title("Ground Truth : {}".format(test_Y[0]))
-    plt.show()
+    # plt.subplot(122)
+    # plt.imshow(test_X[1, :, :], cmap='gray')
+    # plt.title("Ground Truth : {}".format(test_Y[0]))
+    # plt.show()
 
     # print(dcmSet.shape[0])
     # print(labels.shape[0])
@@ -176,8 +185,8 @@ def main():
     train_X = train_X.reshape(-1, 28, 28, 1)
     test_X = test_X.reshape(-1, 28, 28, 1)
 
-    X_train = X_train.reshape(-1, 512, 512, 1)
-    X_test = X_test.reshape(-1, 512, 512, 1)
+    X_train = X_train.reshape(-1, input_shape, input_shape, 1)
+    X_test = X_test.reshape(-1, input_shape, input_shape, 1)
 
     # print('Training data shape : ', train_X.shape, train_Y.shape)
     #
@@ -222,18 +231,38 @@ def main():
     # fashion_model = load_model("fashion_model_dropout.h5py")
 
     first_model = Sequential()
-    first_model.add(Conv2D(8, kernel_size=(5, 5), strides=(1, 1), activation='linear', input_shape=(512, 512, 1)))
+    # first article
+    # first_model.add(Conv2D(8, kernel_size=(5, 5), strides=(1, 1), activation='relu', input_shape=(input_shape, input_shape, 1)))
+    # first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+    # first_model.add(Conv2D(16, kernel_size=(5, 5), strides=(1, 1), activation='relu'))
+    # first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+    # first_model.add(Flatten())
+    # first_model.add(Dense(150, activation='relu'))
+    # first_model.add(Dense(100, activation='relu'))
+    # first_model.add(Dense(50, activation='relu'))
+    # first_model.add(Dense(2, activation='softmax'))
+
+    #second article
+    first_model.add(Conv2D(8, kernel_size=(7, 7), strides=(1, 1), activation='relu', input_shape=(512, 512, 1), bias_initializer=keras.initializers.Constant(value=0.0)))
     first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    first_model.add(Conv2D(16, kernel_size=(5, 5), strides=(1, 1), activation='linear'))
+    first_model.add(Conv2D(16, kernel_size=(7, 7), strides=(1, 1), activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
     first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     first_model.add(Flatten())
-    first_model.add(Dense(150, activation='relu'))
-    first_model.add(Dense(100, activation='relu'))
-    first_model.add(Dense(50, activation='relu'))
-    first_model.add(Dense(2, activation='softmax'))
+    first_model.add(Dense(500, activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
+    first_model.add(Dropout(0.5))
+    first_model.add(Dense(2, activation='softmax', bias_initializer=keras.initializers.Constant(value=0.0)))
 
-    first_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(),
+    #first article
+    # sgd = keras.optimizers.SGD(learning_rate=0.0005, momentum=0.95)
+    # adam = keras.optimizers.Adam(learning_rate=0.0005)
+    #second article
+    sgd = keras.optimizers.SGD(learning_rate=0.0005, decay=5.5)
+
+    first_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd,
                         metrics=['accuracy'])
+
+    # first_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(),
+    #                     metrics=['accuracy'])
     # first_model.save("first_model.h5py")
     first_model.summary()
 
@@ -245,6 +274,22 @@ def main():
     print('Test loss:', test_eval[0])
     print('Test accuracy:', test_eval[1])
 
+    accuracy = first_train.history['accuracy']
+    val_accuracy = first_train.history['val_accuracy']
+    loss = first_train.history['loss']
+    val_loss = first_train.history['val_loss']
+    epochs = range(len(accuracy))
+    plt.plot(epochs, accuracy, 'bo', label='Training accuracy')
+    plt.plot(epochs, val_accuracy, 'b', label='Validation accuracy')
+    plt.title('Training and validation accuracy')
+    plt.legend()
+    plt.figure()
+    plt.plot(epochs, loss, 'bo', label='Training loss')
+    plt.plot(epochs, val_loss, 'b', label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.legend()
+    plt.show()
+
     predicted_classes = first_model.predict(X_test)
     predicted_classes = np.argmax(np.round(predicted_classes), axis=1)
 
@@ -252,7 +297,7 @@ def main():
     print("Found %d correct labels" % len(correct))
     for i, correct in enumerate(correct[:9]):
         plt.subplot(3, 3, i + 1)
-        plt.imshow(X_test[correct].reshape(512, 512), cmap='gray', interpolation='none')
+        plt.imshow(X_test[correct].reshape(input_shape, input_shape), cmap='gray', interpolation='none')
         plt.title("Predicted {}, Class {}".format(predicted_classes[correct], y_test[correct]))
         plt.tight_layout()
     plt.show()
@@ -261,7 +306,7 @@ def main():
     print("Found %d incorrect labels" % len(incorrect))
     for i, incorrect in enumerate(incorrect[:9]):
         plt.subplot(3, 3, i + 1)
-        plt.imshow(X_test[incorrect].reshape(512, 512), cmap='gray', interpolation='none')
+        plt.imshow(X_test[incorrect].reshape(input_shape, input_shape), cmap='gray', interpolation='none')
         plt.title("Predicted {}, Class {}".format(predicted_classes[incorrect], y_test[incorrect]))
         plt.tight_layout()
 
