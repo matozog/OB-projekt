@@ -14,6 +14,7 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import LeakyReLU
+from keras.layers import ReLU
 from sklearn.metrics import classification_report
 from keras.models import load_model
 from sklearn.metrics import classification_report
@@ -160,11 +161,11 @@ def main():
 
     X_train, X_test, y_train, y_test = train_test_split(processedDCMSet, processedLabels, test_size=0.143, shuffle=True, random_state=50)
 
-    plt.figure(figsize=[5, 5])
+    # plt.figure(figsize=[5, 5])
     # Display the first image in training data
-    plt.subplot(121)
-    plt.imshow(dcmSet[0, :, :], cmap=plt.cm.bone)
-    plt.title("Ground Truth : {}".format(train_Y[0]))
+    # plt.subplot(121)
+    # plt.imshow(dcmSet[0, :, :], cmap=plt.cm.bone)
+    # plt.title("Ground Truth : {}".format(train_Y[0]))
 
     # Display the first image in testing data
     # plt.subplot(122)
@@ -243,12 +244,15 @@ def main():
     # first_model.add(Dense(2, activation='softmax'))
 
     #second article
-    first_model.add(Conv2D(8, kernel_size=(7, 7), strides=(1, 1), activation='relu', input_shape=(512, 512, 1), bias_initializer=keras.initializers.Constant(value=0.0)))
+    first_model.add(Conv2D(12, kernel_size=(7, 7), strides=(1, 1), activation='relu', input_shape=(512, 512, 1), bias_initializer=keras.initializers.Constant(value=0.0)))
+    first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
     first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    first_model.add(Conv2D(16, kernel_size=(7, 7), strides=(1, 1), activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
+    first_model.add(Conv2D(30, kernel_size=(7, 7), strides=(1, 1), activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
+    first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
     first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     first_model.add(Flatten())
     first_model.add(Dense(500, activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
+    first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
     first_model.add(Dropout(0.5))
     first_model.add(Dense(2, activation='softmax', bias_initializer=keras.initializers.Constant(value=0.0)))
 
