@@ -1,4 +1,0 @@
-val accuracy: 
-val loss: 
-train accuracy: 
-train loss: 
