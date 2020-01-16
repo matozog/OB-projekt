@@ -1,0 +1,4 @@
+batch_size = 64
+epochs = 15
+input_shape = 128
+classes= 2
