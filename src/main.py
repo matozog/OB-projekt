@@ -75,7 +75,7 @@ def load_data(tif_data):
 
 
 def preprocessing_data(tifSet, labels):
-    filters_per_image = 100
+    filters_per_image = 20
     input_shape = 128
     ConstPixelDims = (len(tifSet) * filters_per_image, input_shape, input_shape, 1)
     processedTIFSet = np.zeros(ConstPixelDims)
@@ -135,7 +135,7 @@ def first_model(input_shape, n_classes):
 
     # first article
     sgd = keras.optimizers.SGD(learning_rate=0.0005, momentum=0.95)
-    # adam = keras.optimizers.Adam(learning_rate=0.0005)
+    adam = keras.optimizers.Adam()
 
     model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd,
                   metrics=['accuracy'])
@@ -150,20 +150,21 @@ def second_model(input_shape, n_classes):
     model.add(
         Conv2D(20, kernel_size=(7, 7), strides=(1, 1), activation='relu', input_shape=(input_shape, input_shape, 1),
                bias_initializer=keras.initializers.Constant(value=0.0)))
-    model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
+    model.add(ReLU())
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     model.add(Conv2D(50, kernel_size=(7, 7), strides=(1, 1), activation='relu',
                      bias_initializer=keras.initializers.Constant(value=0.1)))
-    model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
+    model.add(ReLU())
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     model.add(Flatten())
     model.add(Dense(500, activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
-    model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
+    model.add(ReLU())
     model.add(Dropout(0.5))
     model.add(Dense(n_classes, activation='softmax', bias_initializer=keras.initializers.Constant(value=0.0)))
 
     # second article
     sgd = keras.optimizers.SGD(learning_rate=0.0005, decay=5.5)
+    adam = keras.optimizers.Adam()
 
     model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd,
                   metrics=['accuracy'])
@@ -181,6 +182,7 @@ def third_model(input_shape, n_classes):
     model.add(Dense(n_classes, activation='softmax'))
     # third model
     adam = keras.optimizers.Adam()
+    sgd = keras.optimizers.sgd()
 
     model.compile(loss=keras.losses.categorical_crossentropy, optimizer=adam,
                   metrics=['accuracy'])
@@ -208,6 +210,10 @@ def evaluate_results(first_train, model, test_eval, X_test, y_test, input_shape,
     plt.title('Training and validation loss')
     plt.legend()
     plt.show()
+    print("Val accuracy: " + str(val_accuracy))
+    print("Val loss: " + str(val_loss))
+    print("Train accuracy: " + str(accuracy))
+    print("Train loss: " + str(loss))
 
     predicted_classes = model.predict(X_test)
     predicted_classes = np.argmax(np.round(predicted_classes), axis=1)
@@ -239,7 +245,7 @@ def evaluate_results(first_train, model, test_eval, X_test, y_test, input_shape,
 
 def main():
     batch_size = 64
-    epochs = 2
+    epochs = 15
     input_shape = 128
     n_classes = 2
     data_dir = "../"
@@ -269,7 +275,7 @@ def main():
     y_train_one_hot = to_categorical(y_train)
     y_test_one_hot = to_categorical(y_test)
 
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train_one_hot, test_size=0.1, random_state=13,
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train_one_hot, test_size=0.1, random_state=50,
                                                           shuffle=True)
     # loading model
     # fashion_model = load_model("model_dropout.h5py")
