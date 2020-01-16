@@ -137,7 +137,7 @@ def first_model(input_shape, n_classes):
     sgd = keras.optimizers.SGD(learning_rate=0.0005, momentum=0.95)
     adam = keras.optimizers.Adam()
 
-    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd,
+    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=adam,
                   metrics=['accuracy'])
     model.summary()
 
@@ -166,7 +166,7 @@ def second_model(input_shape, n_classes):
     sgd = keras.optimizers.SGD(learning_rate=0.0005, decay=5.5)
     adam = keras.optimizers.Adam()
 
-    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd,
+    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=adam,
                   metrics=['accuracy'])
     model.summary()
 
