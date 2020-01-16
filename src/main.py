@@ -20,6 +20,7 @@ from keras.models import load_model
 from sklearn.metrics import classification_report
 from sklearn.utils.testing import mock_mldata_urlopen
 from skimage.transform import resize
+import collections
 
 
 def process_data(path):
@@ -53,7 +54,13 @@ def load_data(tif_data):
     ArrayDicom = np.zeros(ConstPixelDims, dtype=RefDs.dtype)
 
     listFilesTIF = [path for path in tif_data['path']]
-    labels = np.array([label for label in tif_data['Contrast']])
+    labels = np.zeros(len(tif_data['Contrast']))
+    # labels = np.array([label for label in tif_data['Contrast']])
+    for i in range(len(tif_data['Contrast'])):
+        if tif_data['Contrast'][i]:
+            labels[i] = 1
+        else:
+            labels[i] = 0
 
     # loop through all the TIF files
     for filenameDCM in listFilesTIF:
@@ -68,9 +75,9 @@ def load_data(tif_data):
 
 
 def preprocessing_data(tifSet, labels):
-    filters_per_image = 4
+    filters_per_image = 20
     input_shape = 256
-    ConstPixelDims = (len(tifSet) * filters_per_image, input_shape, input_shape)
+    ConstPixelDims = (len(tifSet) * filters_per_image, input_shape, input_shape, 1)
     processedTIFSet = np.zeros(ConstPixelDims)
     processedLabels = np.zeros(len(labels) * filters_per_image, dtype=labels.dtype)
     aug = ImageDataGenerator(
@@ -83,30 +90,23 @@ def preprocessing_data(tifSet, labels):
         fill_mode="nearest",
         data_format="channels_last")
 
-    # dcmSet = dcmSet.reshape(-1, input_shape, input_shape, 1)
+    tifSet = tifSet.reshape(-1, input_shape, input_shape, 1)
     index = 0
-    # imageGen = aug.flow(dcmSet)
-    # for i in range(len(dcmSet)):
-    #     for j in range(filters_per_image):
-    #         processedDCMSet[index, :, :] = imageGen
-    #         processedLabels[index] = labels[i]
-    #         index += 1
-    #     show_images(processedDCMSet[index - filters_per_image: index, :, :])
-
+    # plt.figure(figsize=[5, 5])
     for i in range(len(tifSet)):
-        processedTIFSet[index, :, :] = tifSet[i]
-        processedLabels[index] = labels[i]
-        index += 1
-        processedTIFSet[index, :, :] = np.rot90(tifSet[i])
-        processedLabels[index] = labels[i]
-        index += 1
-        processedTIFSet[index, :, :] = np.rot90(tifSet[i], 2)
-        processedLabels[index] = labels[i]
-        index += 1
-        processedTIFSet[index, :, :] = np.rot90(tifSet[i], 3)
-        processedLabels[index] = labels[i]
-        index += 1
-        # show_images(processedDCMSet[index-filters_per_image: index, :, :])
+        filter_index = 0
+        imageGen = aug.flow(tifSet[i:i + 1], batch_size=1)
+        for x_batch in imageGen:
+            processedTIFSet[index, :, :, :] = np.squeeze(x_batch, axis=0)
+            processedLabels[index] = labels[i]
+            # plt.subplot(121)
+            # img = np.squeeze(processedTIFSet[index], axis=2)
+            # plt.imshow(img, cmap='gray')
+            # plt.show()
+            index += 1
+            filter_index += 1
+            if filter_index == filters_per_image:
+                break
 
     return processedTIFSet, processedLabels
 
@@ -120,51 +120,28 @@ def show_images(images):
 
 
 def main():
-    batch_size = 20
-    epochs = 20
+    batch_size = 32
+    epochs = 2
     input_shape = 256
     n_classes = 2
     data_dir = "../"
     data_df = pd.read_csv(data_dir + "overview.csv")
-    aug = ImageDataGenerator(
-        rotation_range=270,
-        zoom_range=0.15,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.15,
-        horizontal_flip=True,
-        fill_mode="nearest",
-        data_format="channels_last")
 
     tif_data = process_data(data_dir + 'tiff_images/*.tif')
 
     # count_plot_comparison('Age', data_df, tiff_data, dicom_data)
 
+    print("Loading tiff data ...")
     tifSet, labels = load_data(tif_data)
 
+    print("Preprocessing data ...")
     processedTIFSet, processedLabels = preprocessing_data(tifSet, labels)
 
     X_train, X_test, y_train, y_test = train_test_split(processedTIFSet, processedLabels, test_size=0.143, shuffle=True,
                                                         random_state=50)
 
-    # plt.figure(figsize=[5, 5])
-    # Display the first image in training data
-    # plt.subplot(121)
-    # plt.imshow(dcmSet[0, :, :], cmap=plt.cm.bone)
-    # plt.title("Ground Truth : {}".format(train_Y[0]))
-
-    # Display the first image in testing data
-    # plt.subplot(122)
-    # plt.imshow(test_X[1, :, :], cmap='gray')
-    # plt.title("Ground Truth : {}".format(test_Y[0]))
-    # plt.show()
-
     X_train = X_train.reshape(-1, input_shape, input_shape, 1)
     X_test = X_test.reshape(-1, input_shape, input_shape, 1)
-
-    # print('Training data : ', X_train.shape, y_train.shape)
-    #
-    # print('Testing data : ', X_test.shape, y_test.shape)
 
     X_train = X_train.astype('float32')
     X_test = X_test.astype('float32')
@@ -174,13 +151,16 @@ def main():
     y_train_one_hot = to_categorical(y_train)
     y_test_one_hot = to_categorical(y_test)
 
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train_one_hot, test_size=0.2, random_state=13)
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train_one_hot, test_size=0.1, random_state=13,
+                                                          shuffle=True)
     # loading model
-    # fashion_model = load_model("fashion_model_dropout.h5py")
+    # fashion_model = load_model("model_dropout.h5py")
 
+    print("Building model ...")
     first_model = Sequential()
     # first article
-    # first_model.add(Conv2D(8, kernel_size=(5, 5), strides=(1, 1), activation='relu', input_shape=(input_shape, input_shape, 1)))
+    # first_model.add(
+    #     Conv2D(8, kernel_size=(5, 5), strides=(1, 1), activation='relu', input_shape=(input_shape, input_shape, 1)))
     # first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     # first_model.add(Conv2D(16, kernel_size=(5, 5), strides=(1, 1), activation='relu'))
     # first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
@@ -188,38 +168,41 @@ def main():
     # first_model.add(Dense(150, activation='relu'))
     # first_model.add(Dense(100, activation='relu'))
     # first_model.add(Dense(50, activation='relu'))
-    # first_model.add(Dense(2, activation='softmax'))
+    # first_model.add(Dense(n_classes, activation='softmax'))
 
     # second article
-    # first_model.add(Conv2D(12, kernel_size=(7, 7), strides=(1, 1), activation='relu', input_shape=(512, 512, 1), bias_initializer=keras.initializers.Constant(value=0.0)))
-    # first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
-    # first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    # first_model.add(Conv2D(30, kernel_size=(7, 7), strides=(1, 1), activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
-    # first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
-    # first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    # first_model.add(Flatten())
-    # first_model.add(Dense(500, activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
-    # first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
-    # first_model.add(Dropout(0.5))
-    # first_model.add(Dense(2, activation='softmax', bias_initializer=keras.initializers.Constant(value=0.0)))
-
-    # third model
-    first_model.add(Conv2D(32, kernel_size=(4, 4), activation='relu', input_shape=(input_shape, input_shape, 1)))
+    first_model.add(
+        Conv2D(20, kernel_size=(7, 7), strides=(1, 1), activation='relu', input_shape=(input_shape, input_shape, 1),
+               bias_initializer=keras.initializers.Constant(value=0.0)))
+    first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
+    first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+    first_model.add(Conv2D(50, kernel_size=(7, 7), strides=(1, 1), activation='relu',
+                           bias_initializer=keras.initializers.Constant(value=0.1)))
+    first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
     first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     first_model.add(Flatten())
-    first_model.add(Dense(n_classes, activation='softmax'))
+    first_model.add(Dense(500, activation='relu', bias_initializer=keras.initializers.Constant(value=0.1)))
+    first_model.add(ReLU(max_value=None, negative_slope=0.0, threshold=0.0))
+    first_model.add(Dropout(0.5))
+    first_model.add(Dense(2, activation='softmax', bias_initializer=keras.initializers.Constant(value=0.0)))
+
+    # third model
+    # first_model.add(Conv2D(32, kernel_size=(4, 4), activation='relu', input_shape=(input_shape, input_shape, 1)))
+    # first_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+    # first_model.add(Flatten())
+    # first_model.add(Dense(n_classes, activation='softmax'))
 
     # first article
     # sgd = keras.optimizers.SGD(learning_rate=0.0005, momentum=0.95)
     # adam = keras.optimizers.Adam(learning_rate=0.0005)
 
     # second article
-    # sgd = keras.optimizers.SGD(learning_rate=0.0005, decay=5.5)
+    sgd = keras.optimizers.SGD(learning_rate=0.0005, decay=5.5)
 
     # third model
-    adam = keras.optimizers.Adam()
+    # adam = keras.optimizers.Adam()
 
-    first_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=adam,
+    first_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd,
                         metrics=['accuracy'])
 
     # first_model.save("first_model.h5py")
@@ -227,10 +210,6 @@ def main():
 
     first_train = first_model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
                                   validation_data=(X_valid, y_valid))
-    # aug.fit(X_train)
-    # first_train = first_model.fit_generator(aug.flow(X_train, y_train, batch_size=batch_size),
-    #                                         epochs=epochs, verbose=1,
-    #                                         validation_data=(X_valid, y_valid))
 
     test_eval = first_model.evaluate(X_test, y_test_one_hot, verbose=0)
 
