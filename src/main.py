@@ -12,15 +12,10 @@ import keras
 from keras.models import Sequential, Input, Model
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
-from keras.layers.normalization import BatchNormalization
-from keras.layers.advanced_activations import LeakyReLU
 from keras.layers import ReLU
 from sklearn.metrics import classification_report, confusion_matrix
-from keras.models import load_model
 from sklearn.metrics import classification_report
-from sklearn.utils.testing import mock_mldata_urlopen
 from skimage.transform import resize
-import collections
 
 
 def process_data(path):
